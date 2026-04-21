@@ -115,30 +115,51 @@ aperture, thereby altering interference at the output. The modulated field is
 E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}.
 \]
 
+\newpage
+
 \subsection{Physics-Informed Neural Networks}
 
-Physics-informed neural networks (PINNs) are a class of neural-network models in which the unknown
-solution of a physical system is represented by a trainable function and constrained not only by data,
-but also by the governing differential equations of the system. Rather than learning an arbitrary
-input--output map, a PINN seeks a function that is consistent with both observations and the known
-underlying physics.
+Physics-informed neural networks (PINNs) are a class of machine-learning models designed to
+approximate the solution of a physical system while explicitly respecting its governing equations.
+In a standard neural network, one typically provides input--output data pairs and trains the network
+to reproduce the observed mapping. A PINN extends this idea by requiring the network not only to
+fit data, but also to satisfy the differential equations, boundary conditions, and initial conditions
+that describe the underlying physics.
 
-In the present context, the relevant unknown field is the temperature distribution
-\(T(\mathbf{r},t)\) inside the thermo-optical material. A PINN represents this field by a neural
-network \(T_\theta(\mathbf{r},t)\), where \(\theta\) denotes the trainable parameters. The network is
-then trained so that its output satisfies the heat equation
+In the present project, the quantity of interest is the temperature field inside the thermo-optical
+material. Rather than solving for this field using only a conventional numerical discretisation, a
+PINN represents the temperature by a neural network
 \begin{equation}
+T_\theta(\mathbf{r},t),
+\end{equation}
+where \(\mathbf{r}\) denotes spatial position, \(t\) denotes time, and \(\theta\) represents the trainable
+parameters of the network, namely its weights and biases. The role of training is to adjust
+\(\theta\) so that the network output approximates a temperature field that is both physically
+admissible and consistent with any available observations.
+
+For the thermal model considered here, the governing equation is the heat equation
+\begin{equation}
+\rho c_p \frac{\partial T}{\partial t}
+=
+\nabla \cdot (\kappa \nabla T) + Q(\mathbf{r},t).
+\end{equation}
+A PINN does not enforce this equation symbolically; instead, it enforces it approximately by
+penalising violations of the equation at many sampled points in space and time. Substituting the
+network output \(T_\theta(\mathbf{r},t)\) into the heat equation gives the residual
+\begin{equation}
+\mathcal{R}_\theta(\mathbf{r},t)
+=
 \rho c_p \frac{\partial T_\theta}{\partial t}
 -
 \nabla \cdot (\kappa \nabla T_\theta)
 -
-Q(\mathbf{r},t)
-= 0
+Q(\mathbf{r},t).
 \end{equation}
-at a set of collocation points in space and time, while also matching any available initial conditions,
-boundary conditions, and measurement data.
+If \(T_\theta\) were the exact physical solution, this residual would vanish everywhere. The PINN is
+therefore trained so that \(\mathcal{R}_\theta(\mathbf{r},t)\) is as small as possible over the domain of
+interest.
 
-The training objective therefore consists of several terms. A typical PINN loss takes the form
+The overall training objective is written as a weighted sum of loss terms,
 \begin{equation}
 \mathcal{L}
 =
@@ -148,37 +169,54 @@ The training objective therefore consists of several terms. A typical PINN loss 
 +
 \lambda_{\mathrm{BC}}\mathcal{L}_{\mathrm{BC}}
 +
-\lambda_{\mathrm{IC}}\mathcal{L}_{\mathrm{IC}},
+\lambda_{\mathrm{IC}}\mathcal{L}_{\mathrm{IC}}.
 \end{equation}
-where \(\mathcal{L}_{\mathrm{data}}\) penalizes disagreement with observed data,
-\(\mathcal{L}_{\mathrm{PDE}}\) penalizes violations of the governing heat equation,
-\(\mathcal{L}_{\mathrm{BC}}\) enforces boundary conditions, and
-\(\mathcal{L}_{\mathrm{IC}}\) enforces the initial temperature field. The PDE residual is evaluated
-using automatic differentiation, which allows spatial and temporal derivatives of the neural-network
-output to be computed directly during training.
+Each term plays a different role. The data loss \(\mathcal{L}_{\mathrm{data}}\) penalises disagreement
+between the network prediction and any available measurements. The PDE loss
+\(\mathcal{L}_{\mathrm{PDE}}\) penalises violations of the heat equation through the residual
+\(\mathcal{R}_\theta\). The boundary-condition loss \(\mathcal{L}_{\mathrm{BC}}\) enforces the thermal
+conditions at the edges of the material, such as fixed temperature or insulated boundaries, and the
+initial-condition loss \(\mathcal{L}_{\mathrm{IC}}\) enforces the temperature field at the initial time.
 
-Once a thermally consistent approximation \(T_\theta(\mathbf{r},t)\) has been learned, it can be
+The coefficients \(\lambda_{\mathrm{data}}\), \(\lambda_{\mathrm{PDE}}\), \(\lambda_{\mathrm{BC}}\), and
+\(\lambda_{\mathrm{IC}}\) are scalar weighting factors that determine the relative importance of the
+different terms during training. They are not physical constants; rather, they are tunable
+hyperparameters chosen so that the network balances data fitting and physical consistency in a
+numerically stable way. For example, if \(\lambda_{\mathrm{PDE}}\) is too small, the model may fit the
+data well but violate the heat equation significantly. If it is too large, the model may satisfy the
+equation while fitting observations poorly. In practice, these weights are selected empirically or
+adaptively to obtain a useful compromise between the competing objectives.
+
+Training proceeds by sampling points in the space--time domain and evaluating the loss function at
+those points. The required derivatives, such as \(\partial T_\theta/\partial t\) and spatial gradients of
+\(T_\theta\), are computed using automatic differentiation. An optimisation algorithm such as gradient
+descent or Adam then updates the parameters \(\theta\) to reduce the total loss. In this sense, the
+network ``learns'' by repeatedly proposing a candidate temperature field, measuring how strongly it
+violates the data and physics constraints, and adjusting its parameters to reduce those violations.
+
+Once a thermally consistent approximation \(T_\theta(\mathbf{r},t)\) has been obtained, it can be
 coupled to the optical model through the thermo-optic relation
 \begin{equation}
 n_\theta(\mathbf{r},t)
 =
 n_0+\frac{dn}{dT}\bigl(T_\theta(\mathbf{r},t)-T_0\bigr),
 \end{equation}
-which gives a corresponding refractive-index field. This refractive-index variation induces a
-time-dependent optical phase perturbation,
+which gives a corresponding refractive-index field. This in turn induces a time-dependent optical
+phase perturbation,
 \begin{equation}
 \Delta \phi_\theta(x,y,t)
 =
 k\int \bigl(n_\theta(x,y,z,t)-n_0\bigr)\,dz,
 \end{equation}
-and hence modifies the effective optical response of the medium. In this way, the PINN serves as a
-physics-constrained surrogate model for the thermal dynamics that drive drift in the optical system.
+and therefore modifies the effective optical response of the material. In the present setting, the
+PINN is thus used as a physics-constrained surrogate model for the thermal dynamics that drive
+slow drift in the optical system.
 
-The main advantage of this approach is that it embeds known thermal physics directly into the learning
-process, reducing the need for large volumes of labelled data and producing predictions that remain
-consistent with the governing equations. For the present project, this provides a principled framework
-for learning the slow time evolution of the thermo-optical material and relating that evolution to the
-changing interference pattern observed at the detector.
+The main appeal of this approach is that it incorporates known thermal physics directly into the
+learning process. As a result, the model does not rely solely on large labelled datasets, and its
+predictions are encouraged to remain consistent with the governing equations of the system. This
+makes PINNs a natural candidate for modelling thermally driven changes in an optical medium whose
+internal state is only partially observed through optical measurements.
 
 
 \newpage
