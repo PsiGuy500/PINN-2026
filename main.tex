@@ -86,9 +86,9 @@ where $w \equiv w(z_0)$, $R \equiv R(z_0)$, and $A$ absorbs all constant prefact
 \end{equation}
 
 The modulated field then propagates through thermo-optical material modelled by a linear
-transmission matrix $T$, and the detector measures only intensity:
+transmission matrix $T_{\mathrm{opt}}(t)$, and the detector measures only intensity:
 \begin{equation}
-    E_{\mathrm{out}} = T\,E_{\mathrm{SLM}}, \qquad I(x,y) = \left|E_{\mathrm{out}}(x,y)\right|^2.
+    E_{\mathrm{out}} = T_{\mathrm{opt}}(t)\,E_{\mathrm{SLM}}, \qquad I(x,y) = \left|E_{\mathrm{out}}(x,y)\right|^2.
 \end{equation}
 
 Optical detectors measure intensity, not complex amplitude, so $I(x,y)$ is the
@@ -239,6 +239,13 @@ is the prescribed initial temperature at spatial point \(\mathbf{r}_i^{(0)}\). T
 \(\lambda_{\mathrm{data}}\), \(\lambda_{\mathrm{PDE}}\), \(\lambda_{\mathrm{BC}}\), and \(\lambda_{\mathrm{IC}}\) are scalar
 weighting hyperparameters that determine the relative contribution of each loss term during training.
 
+Minimising \(\mathcal{L}\) means differentiating this scalar objective with respect to the trainable
+parameters \(\theta = \{W^{[1]}, b^{[1]}, \dots, W^{[N]}, b^{[N]}\}\) and updating the weights and biases
+iteratively (for instance by gradient descent). The intermediate quantities \(z^{[\ell]}\) and
+\(a^{[\ell]}\) arise during each forward pass and are not directly updated; instead, changes in
+\(W^{[\ell]}\) and \(b^{[\ell]}\) produce new forward-pass values and thus a new temperature prediction
+\(T_\theta(\mathbf{r},t)\).
+
 In training, the network takes \((\mathbf{r},t)\) as input and outputs \(T_\theta(\mathbf{r},t)\).
 Automatic differentiation provides the required spatial and temporal derivatives in
 \(\mathcal{R}_\theta\), and the parameters \(\theta\) are updated to minimise \(\mathcal{L}\), yielding a
@@ -370,28 +377,55 @@ differential equation, $N_0$ points along the initial-time slice enforce the ini
 and $N_b$ points along each boundary enforce the boundary conditions. The scalar coefficients
 $\lambda_{\mathrm{PDE}}$, $\lambda_{\mathrm{IC}}$, and $\lambda_{\mathrm{BC}}$ are user-chosen hyperparameters that
 balance the relative importance of the three constraints. Increasing a particular $\lambda$
-directs the optimiser to prioritise satisfying that constraint more strongly. The network is
-trained by computing gradients of $\mathcal{L}$ with respect to all weights and biases $\theta$
-and updating them iteratively using gradient descent, until $\mathcal{L}$ is acceptably small.
+directs the optimiser to prioritise satisfying that constraint more strongly.
+
+At this point the total loss is a scalar function of all weights and biases,
+\[
+\theta = \{W^{[1]}, b^{[1]}, \dots, W^{[N]}, b^{[N]}\},
+\]
+so training computes the gradients
+\[
+\frac{\partial \mathcal{L}}{\partial W^{[\ell]}}, \qquad
+\frac{\partial \mathcal{L}}{\partial b^{[\ell]}}
+\]
+for every layer and updates the parameters, for example by gradient descent,
+\[
+W^{[\ell]} \leftarrow W^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial W^{[\ell]}},
+\qquad
+b^{[\ell]} \leftarrow b^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial b^{[\ell]}}.
+\]
+The intermediate values $z^{[\ell]}$ and $a^{[\ell]}$ are produced during each forward pass and are
+not directly updated by the loss; instead, changing $W^{[\ell]}$ and $b^{[\ell]}$ yields a new forward
+pass and therefore a new prediction $T_\theta(x,t)$. This is the mechanism by which the PDE,
+initial, and boundary constraints influence the learned solution.
 
 \subsubsection*{Summary of the workflow}
 
 In brief, solving the 1D heat equation with a PINN proceeds as follows:
 \begin{enumerate}[label=(\roman*)]
     \item Choose a space-time point $(x, t)$ in the domain.
-    \item Evaluate the network to obtain the predicted temperature $T_\theta(x,t)$.
+    \item Set the input activation
+        \[
+        a^{[0]} = \begin{bmatrix}x \\ t\end{bmatrix}.
+        \]
+    \item Propagate forward using
+        \[
+        z^{[\ell]} = W^{[\ell]} a^{[\ell-1]} + b^{[\ell]}, \qquad
+        a^{[\ell]} = \sigma\!\left(z^{[\ell]}\right),
+        \]
+        and obtain $a^{[N]} = T_\theta(x,t)$.
     \item Compute the partial derivatives $\partial T_\theta / \partial t$ and
-          $\partial^2 T_\theta / \partial x^2$ via automatic differentiation.
+        $\partial^2 T_\theta / \partial x^2$ via automatic differentiation.
     \item Form the PDE residual $R_\theta(x,t)$ by substituting these derivatives into
-          the heat equation.
-    \item Repeat steps (i)--(iv) over many sampled points and evaluate the total loss
-          $\mathcal{L}$ over all collocation, initial, and boundary sets.
-    \item Update the network parameters $\theta$ by back-propagating gradients of
-          $\mathcal{L}$, and iterate until convergence.
+        the heat equation.
+    \item Repeat steps (i)--(v) over many sampled points and evaluate the total loss
+        $\mathcal{L}$ over all collocation, initial, and boundary sets.
+    \item Update $W^{[\ell]}$ and $b^{[\ell]}$ using gradients of $\mathcal{L}$, and iterate
+        until convergence.
 \end{enumerate}
 At the end of training, $T_\theta(x,t)$ is a continuous, differentiable approximation of
 the solution that satisfies the heat equation, initial condition, and boundary conditions
-simultaneously, without any spatial grid or time-stepping scheme.
+simultaneously, without an explicit mesh-based spatial discretisation or conventional time-marching scheme.
 
 
 \newpage
@@ -409,7 +443,7 @@ A setup of our system is shown below in Figure~\ref{fig:setup}.
 The optical process is summarized as follows:
 
 
-\begin{enumerate}[label=\textcolor{blue}{\roman*}.]
+\begin{enumerate}[label=\textcolor{blue}{(\Roman*)}]
     \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
     \item Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
     \item Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
