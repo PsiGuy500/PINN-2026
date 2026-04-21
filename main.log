@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2026.1.29)  21 APR 2026 13:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2026.1.29)  21 APR 2026 13:19
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -338,7 +338,11 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <8> on input line 21.
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <6> on input line 21.
- (main.toc
+
+
+[1
+
+{C:/Users/cyrus/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ec.enc}] (main.toc
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <10.95> on input line 2.
 )
@@ -347,42 +351,40 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 
 
 
-[1
+[2]
 
-{C:/Users/cyrus/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ec.enc}]
-
-[2{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathit.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-rm.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathex.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathsy.enc}]
-
-[3]
+[3{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathit.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-rm.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathex.enc}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [4]
 
 [5]
-<figures/setup.png, id=32, 337.26pt x 188.50426pt>
+
+[6]
+<figures/setup.png, id=35, 337.26pt x 188.50426pt>
 File: figures/setup.png Graphic file (type png)
 <use figures/setup.png>
-Package pdftex.def Info: figures/setup.png  used on input line 250.
+Package pdftex.def Info: figures/setup.png  used on input line 280.
 (pdftex.def)             Requested size: 328.82707pt x 183.79521pt.
 
 
-[6 <./figures/setup.png>] (main.aux)
+[7 <./figures/setup.png>] (main.aux)
  ***********
 LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2025-09-02>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 6225 strings out of 468130
- 99738 string characters out of 5430633
+ 6259 strings out of 468130
+ 100172 string characters out of 5430633
  554592 words of memory out of 5000000
- 34656 multiletter control sequences out of 15000+600000
- 681804 words of font info for 125 fonts, out of 8000000 for 9000
+ 34662 multiletter control sequences out of 15000+600000
+ 688973 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 57i,10n,65p,1042b,236s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 57i,10n,65p,1042b,243s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx12.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmex10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi6.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi8.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr12.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr17.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr6.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr8.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmri10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmsy10.pfb>
-Output written on main.pdf (6 pages, 311852 bytes).
+Output written on main.pdf (7 pages, 315138 bytes).
 PDF statistics:
- 100 PDF objects out of 1000 (max. 8388607)
+ 105 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
- 30726 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 34822 words of extra memory for PDF output out of 35830 (max. 10000000)
 

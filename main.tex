@@ -20,6 +20,36 @@
 
 \maketitle
 
+\begin{abstract}
+This project develops a simulation framework for modelling and compensating thermally induced
+drift in a thermo-optical medium. The optical setup consists of a Gaussian input field evaluated
+at the spatial light modulator (SLM) plane, where a phase-only modulation pattern is applied.
+The modulated field then propagates through the medium, described by a time-varying complex
+transmission operator, and intensity is recorded at a downstream detector---the sole accessible
+output of the system.
+
+The thermal model treats the medium as a heat-conducting body governed by the heat equation,
+with material parameters density, specific heat, and thermal conductivity. Temperature variations
+modify the refractive index via the thermo-optic effect, introducing a spatially and temporally
+varying phase perturbation. At the system level this manifests as a slow drift in the effective
+optical transmission operator, which degrades the response seen at the detector if left
+uncompensated.
+
+To capture this thermal dynamics without relying on full numerical discretisation at every time
+step, a physics-informed neural network (PINN) is employed as a surrogate model. The network
+is trained to satisfy the heat equation at interior collocation points while remaining consistent
+with available boundary and initial conditions, yielding a physics-constrained approximation of
+the temperature field. The predicted temperature field is then linked to the optical model
+through the thermo-optic relation to track drift in the transmission operator over time.
+
+The control objective is to select SLM phase patterns that maximise intensity at a designated
+target location, accounting for the time-varying state of the thermal medium. This is primarily
+a modelling and simulation project, combining optical physics, thermal modelling, and
+physics-informed learning.
+\end{abstract}
+
+\newpage 
+
 \tableofcontents
 
 \newpage
@@ -248,7 +278,7 @@ A setup of our system is shown below in Figure~\ref{fig:setup}.
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.7\textwidth]{figures/setup.png}
-    \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the some material, and is detected by the camera.}
+    \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
     \label{fig:setup}
 \end{figure}
 The optical process is summarized as follows:
