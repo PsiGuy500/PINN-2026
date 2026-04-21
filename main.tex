@@ -8,6 +8,8 @@
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{enumitem}
 
 \begin{document}
 
@@ -95,6 +97,7 @@ with \(k=2\pi/\lambda\) and \(\Delta n = n-n_0\).
 At the system level, these thermally induced phase changes are represented as a slow drift in the
 effective optical operator of the medium. In the transmission-matrix description used here, this is
 written as
+
 \begin{equation}
 T_{\mathrm{opt}}(t)=T_{\mathrm{opt},0}+\Delta T_{\mathrm{opt}}(t),
 \end{equation}
@@ -105,12 +108,79 @@ index, and how the resulting refractive-index changes alter the optical response
 
 \subsection{SLM Behaviour}
 
-The SLM acts only in the transverse $(x,y)$ plane and performs phase-only modulation. The applied
-phase pattern is $\phi(x,y)$, so the output field is
+The SLM acts only in the transverse $(x,y)$ plane and is modeled as a phase-only modulator. The
+applied phase pattern $\phi(x,y)$ is the control input and sets the relative phases across the
+aperture, thereby altering interference at the output. The modulated field is
 \[
 E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}.
 \]
-This phase pattern is the control input to the system.
+
+\subsection{Physics-Informed Neural Networks}
+
+Physics-informed neural networks (PINNs) are a class of neural-network models in which the unknown
+solution of a physical system is represented by a trainable function and constrained not only by data,
+but also by the governing differential equations of the system. Rather than learning an arbitrary
+input--output map, a PINN seeks a function that is consistent with both observations and the known
+underlying physics.
+
+In the present context, the relevant unknown field is the temperature distribution
+\(T(\mathbf{r},t)\) inside the thermo-optical material. A PINN represents this field by a neural
+network \(T_\theta(\mathbf{r},t)\), where \(\theta\) denotes the trainable parameters. The network is
+then trained so that its output satisfies the heat equation
+\begin{equation}
+\rho c_p \frac{\partial T_\theta}{\partial t}
+-
+\nabla \cdot (\kappa \nabla T_\theta)
+-
+Q(\mathbf{r},t)
+= 0
+\end{equation}
+at a set of collocation points in space and time, while also matching any available initial conditions,
+boundary conditions, and measurement data.
+
+The training objective therefore consists of several terms. A typical PINN loss takes the form
+\begin{equation}
+\mathcal{L}
+=
+\lambda_{\mathrm{data}}\mathcal{L}_{\mathrm{data}}
++
+\lambda_{\mathrm{PDE}}\mathcal{L}_{\mathrm{PDE}}
++
+\lambda_{\mathrm{BC}}\mathcal{L}_{\mathrm{BC}}
++
+\lambda_{\mathrm{IC}}\mathcal{L}_{\mathrm{IC}},
+\end{equation}
+where \(\mathcal{L}_{\mathrm{data}}\) penalizes disagreement with observed data,
+\(\mathcal{L}_{\mathrm{PDE}}\) penalizes violations of the governing heat equation,
+\(\mathcal{L}_{\mathrm{BC}}\) enforces boundary conditions, and
+\(\mathcal{L}_{\mathrm{IC}}\) enforces the initial temperature field. The PDE residual is evaluated
+using automatic differentiation, which allows spatial and temporal derivatives of the neural-network
+output to be computed directly during training.
+
+Once a thermally consistent approximation \(T_\theta(\mathbf{r},t)\) has been learned, it can be
+coupled to the optical model through the thermo-optic relation
+\begin{equation}
+n_\theta(\mathbf{r},t)
+=
+n_0+\frac{dn}{dT}\bigl(T_\theta(\mathbf{r},t)-T_0\bigr),
+\end{equation}
+which gives a corresponding refractive-index field. This refractive-index variation induces a
+time-dependent optical phase perturbation,
+\begin{equation}
+\Delta \phi_\theta(x,y,t)
+=
+k\int \bigl(n_\theta(x,y,z,t)-n_0\bigr)\,dz,
+\end{equation}
+and hence modifies the effective optical response of the medium. In this way, the PINN serves as a
+physics-constrained surrogate model for the thermal dynamics that drive drift in the optical system.
+
+The main advantage of this approach is that it embeds known thermal physics directly into the learning
+process, reducing the need for large volumes of labelled data and producing predictions that remain
+consistent with the governing equations. For the present project, this provides a principled framework
+for learning the slow time evolution of the thermo-optical material and relating that evolution to the
+changing interference pattern observed at the detector.
+
+
 \newpage
 
 \section{Experimental Setup}
@@ -123,14 +193,15 @@ A setup of our system is shown below in Figure~\ref{fig:setup}.
     \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the some material, and is detected by the camera.}
     \label{fig:setup}
 \end{figure}
-
 The optical process is summarized as follows:
-\begin{enumerate}
-    \item[(I)] Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
-    \item[(II)] Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
-    \item[(III)] Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
-    \item[(IV)] Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
-    \item[(V)] Define the reinforcement-learning reward as the intensity at a selected target output location.
+
+
+\begin{enumerate}[label=\textcolor{blue}{\roman*}.]
+    \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
+    \item Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
+    \item Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
+    \item Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
+    \item Define the reinforcement-learning reward as the intensity at a selected target output location.
 \end{enumerate}
 
 \end{document}
