@@ -159,7 +159,38 @@ If \(T_\theta\) were the exact physical solution, this residual would vanish eve
 therefore trained so that \(\mathcal{R}_\theta(\mathbf{r},t)\) is as small as possible over the domain of
 interest.
 
-The overall training objective is written as a weighted sum of loss terms,
+
+The overall training objective is written as a weighted sum of loss terms. To distinguish the
+different point sets used in training, let \(\{(\mathbf{r}_i^{(f)},t_i^{(f)})\}_{i=1}^{N_f}\) denote the
+interior collocation points used to enforce the PDE, \(\{(\mathbf{r}_i^{(d)},t_i^{(d)},T_i^{\mathrm{data}})\}_{i=1}^{N_d}\)
+the observed data points, \(\{(\mathbf{r}_i^{(b)},t_i^{(b)},T_i^{\mathrm{BC}})\}_{i=1}^{N_b}\) the boundary-condition
+samples, and \(\{\mathbf{r}_i^{(0)}\}_{i=1}^{N_0}\) the spatial points at the initial time \(t=0\), with
+prescribed initial temperature \(T^{\mathrm{init}}(\mathbf{r})\). The component losses are then
+\begin{equation}
+\mathcal{L}_{\mathrm{PDE}}
+=
+\frac{1}{N_f}\sum_{i=1}^{N_f}
+\left|\mathcal{R}_\theta(\mathbf{r}_i^{(f)},t_i^{(f)})\right|^2,
+\end{equation}
+\begin{equation}
+\mathcal{L}_{\mathrm{data}}
+=
+\frac{1}{N_d}\sum_{i=1}^{N_d}
+\left|T_\theta(\mathbf{r}_i^{(d)},t_i^{(d)})-T_i^{\mathrm{data}}\right|^2,
+\end{equation}
+\begin{equation}
+\mathcal{L}_{\mathrm{BC}}
+=
+\frac{1}{N_b}\sum_{i=1}^{N_b}
+\left|T_\theta(\mathbf{r}_i^{(b)},t_i^{(b)})-T_i^{\mathrm{BC}}\right|^2,
+\end{equation}
+\begin{equation}
+\mathcal{L}_{\mathrm{IC}}
+=
+\frac{1}{N_0}\sum_{i=1}^{N_0}
+\left|T_\theta(\mathbf{r}_i^{(0)},0)-T^{\mathrm{init}}(\mathbf{r}_i^{(0)})\right|^2.
+\end{equation}
+The total loss is
 \begin{equation}
 \mathcal{L}
 =
@@ -171,28 +202,17 @@ The overall training objective is written as a weighted sum of loss terms,
 +
 \lambda_{\mathrm{IC}}\mathcal{L}_{\mathrm{IC}}.
 \end{equation}
-Each term plays a different role. The data loss \(\mathcal{L}_{\mathrm{data}}\) penalises disagreement
-between the network prediction and any available measurements. The PDE loss
-\(\mathcal{L}_{\mathrm{PDE}}\) penalises violations of the heat equation through the residual
-\(\mathcal{R}_\theta\). The boundary-condition loss \(\mathcal{L}_{\mathrm{BC}}\) enforces the thermal
-conditions at the edges of the material, such as fixed temperature or insulated boundaries, and the
-initial-condition loss \(\mathcal{L}_{\mathrm{IC}}\) enforces the temperature field at the initial time.
+Here \(N_f\), \(N_d\), \(N_b\), and \(N_0\) are the numbers of PDE, data, boundary, and initial
+samples, respectively. The quantities \(T_i^{\mathrm{data}}\) and \(T_i^{\mathrm{BC}}\) are the prescribed
+temperature values at the data and boundary sample points, while \(T^{\mathrm{init}}(\mathbf{r}_i^{(0)})\)
+is the prescribed initial temperature at spatial point \(\mathbf{r}_i^{(0)}\). The coefficients
+\(\lambda_{\mathrm{data}}\), \(\lambda_{\mathrm{PDE}}\), \(\lambda_{\mathrm{BC}}\), and \(\lambda_{\mathrm{IC}}\) are scalar
+weighting hyperparameters that determine the relative contribution of each loss term during training.
 
-The coefficients \(\lambda_{\mathrm{data}}\), \(\lambda_{\mathrm{PDE}}\), \(\lambda_{\mathrm{BC}}\), and
-\(\lambda_{\mathrm{IC}}\) are scalar weighting factors that determine the relative importance of the
-different terms during training. They are not physical constants; rather, they are tunable
-hyperparameters chosen so that the network balances data fitting and physical consistency in a
-numerically stable way. For example, if \(\lambda_{\mathrm{PDE}}\) is too small, the model may fit the
-data well but violate the heat equation significantly. If it is too large, the model may satisfy the
-equation while fitting observations poorly. In practice, these weights are selected empirically or
-adaptively to obtain a useful compromise between the competing objectives.
-
-Training proceeds by sampling points in the space--time domain and evaluating the loss function at
-those points. The required derivatives, such as \(\partial T_\theta/\partial t\) and spatial gradients of
-\(T_\theta\), are computed using automatic differentiation. An optimisation algorithm such as gradient
-descent or Adam then updates the parameters \(\theta\) to reduce the total loss. In this sense, the
-network ``learns'' by repeatedly proposing a candidate temperature field, measuring how strongly it
-violates the data and physics constraints, and adjusting its parameters to reduce those violations.
+In training, the network takes \((\mathbf{r},t)\) as input and outputs \(T_\theta(\mathbf{r},t)\).
+Automatic differentiation provides the required spatial and temporal derivatives in
+\(\mathcal{R}_\theta\), and the parameters \(\theta\) are updated to minimise \(\mathcal{L}\), yielding a
+temperature field that balances data fidelity with physical consistency.
 
 Once a thermally consistent approximation \(T_\theta(\mathbf{r},t)\) has been obtained, it can be
 coupled to the optical model through the thermo-optic relation
