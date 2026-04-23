@@ -22,30 +22,28 @@
 
 \begin{abstract}
 This project develops a simulation framework for modelling and compensating thermally induced
-drift in a thermo-optical medium. The optical setup consists of a Gaussian input field evaluated
-at the spatial light modulator (SLM) plane, where a phase-only modulation pattern is applied.
-The modulated field then propagates through the medium, described by a time-varying complex
-transmission operator, and intensity is recorded at a downstream detector---the sole accessible
-output of the system.
+drift in a thermo-optical medium. The optical system consists of a Gaussian input field evaluated
+at the spatial light modulator (SLM) plane, where a phase-only modulation pattern is applied. The
+modulated field then propagates through the medium, described by a time-varying complex optical
+operator, and the resulting intensity distribution is recorded at a downstream detector.
 
-The thermal model treats the medium as a heat-conducting body governed by the heat equation,
-with material parameters density, specific heat, and thermal conductivity. Temperature variations
-modify the refractive index via the thermo-optic effect, introducing a spatially and temporally
-varying phase perturbation. At the system level this manifests as a slow drift in the effective
-optical transmission operator, which degrades the response seen at the detector if left
-uncompensated.
+The thermal dynamics of the medium are governed by the heat equation, with temperature-dependent
+refractive-index changes introduced through the thermo-optic effect. These variations produce a
+spatially and temporally varying phase perturbation, which causes slow drift in the effective
+optical response of the system. The evolving thermal state may be captured either by a
+physics-informed neural network (PINN), which encodes the governing equation directly into its
+training objective, or by a classical numerical solver; in either case the result is a temperature
+field consistent with the governing physics and any available boundary, initial, and observational
+constraints.
 
-To capture this thermal dynamics without relying on full numerical discretisation at every time
-step, a physics-informed neural network (PINN) is employed as a surrogate model. The network
-is trained to satisfy the heat equation at interior collocation points while remaining consistent
-with available boundary and initial conditions, yielding a physics-constrained approximation of
-the temperature field. The predicted temperature field is then linked to the optical model
-through the thermo-optic relation to track drift in the transmission operator over time.
-
-The control objective is to select SLM phase patterns that maximise intensity at a designated
-target location, accounting for the time-varying state of the thermal medium. This is primarily
-a modelling and simulation project, combining optical physics, thermal modelling, and
-physics-informed learning.
+Separately from this modelling component, a feedback control loop is used to update the SLM phase
+pattern based on the measured output intensity distribution. This control loop may be implemented
+using reinforcement learning, with the reward defined by the intensity at a designated target output
+location. In this formulation, the thermal model - whether PINN-based or numerically
+solved - tracks the evolving state of the medium, while the RL controller acts on optical
+measurements to compensate drift and recover the desired output response. The project is therefore
+structured around two coupled but conceptually distinct tasks: modelling the thermally driven
+dynamics of the medium and feedback control of the SLM phase pattern.
 \end{abstract}
 
 \newpage 
@@ -157,15 +155,25 @@ fit data, but also to satisfy the differential equations, boundary conditions, a
 that describe the underlying physics.
 
 In the present project, the quantity of interest is the temperature field inside the thermo-optical
-material. Rather than solving for this field using only a conventional numerical discretisation, a
-PINN represents the temperature by a neural network
+material. The PINN represents this field by a feedforward neural network $T_\theta(\mathbf{r},t)$,
+which takes a space-time point $(\mathbf{r},t)$ as its input and produces a scalar temperature
+prediction as its output. Setting the input as the zeroth-layer activation, the forward pass
+proceeds layer by layer:
 \begin{equation}
-T_\theta(\mathbf{r},t),
+z^{[\ell]} = W^{[\ell]}\,a^{[\ell-1]} + b^{[\ell]},
+\qquad
+a^{[\ell]} = \sigma\!\left(z^{[\ell]}\right),
 \end{equation}
-where \(\mathbf{r}\) denotes spatial position, \(t\) denotes time, and \(\theta\) represents the trainable
-parameters of the network, namely its weights and biases. The role of training is to adjust
-\(\theta\) so that the network output approximates a temperature field that is both physically
-admissible and consistent with any available observations.
+for hidden layers $\ell = 1, \dots, N-1$. Here $W^{[\ell]}$ is the weight matrix for layer~$\ell$,
+$b^{[\ell]}$ is the bias vector, $z^{[\ell]}$ is the pre-activation, and $a^{[\ell]}$ is the
+post-activation output. The final layer produces a single scalar with no output activation,
+interpreted directly as the predicted temperature $T_\theta(\mathbf{r},t)$. The full set of
+trainable parameters is
+\begin{equation}
+\theta = \{W^{[1]}, b^{[1]}, \dots, W^{[N]}, b^{[N]}\},
+\end{equation}
+and the role of training is to adjust $\theta$ so that the network output approximates a temperature
+field that is both physically admissible and consistent with any available observations.
 
 For the thermal model considered here, the governing equation is the heat equation
 \begin{equation}
@@ -173,9 +181,8 @@ For the thermal model considered here, the governing equation is the heat equati
 =
 \nabla \cdot (\kappa \nabla T) + Q(\mathbf{r},t).
 \end{equation}
-A PINN does not enforce this equation symbolically; instead, it enforces it approximately by
-penalising violations of the equation at many sampled points in space and time. Substituting the
-network output \(T_\theta(\mathbf{r},t)\) into the heat equation gives the residual
+A PINN enforces this equation approximately by penalising violations at sampled collocation points.
+Substituting the network output into the left- and right-hand sides gives the PDE residual
 \begin{equation}
 \mathcal{R}_\theta(\mathbf{r},t)
 =
@@ -185,17 +192,15 @@ network output \(T_\theta(\mathbf{r},t)\) into the heat equation gives the resid
 -
 Q(\mathbf{r},t).
 \end{equation}
-If \(T_\theta\) were the exact physical solution, this residual would vanish everywhere. The PINN is
-therefore trained so that \(\mathcal{R}_\theta(\mathbf{r},t)\) is as small as possible over the domain of
-interest.
+If $T_\theta$ were the exact physical solution, this residual would vanish everywhere.
 
-
-The overall training objective is written as a weighted sum of loss terms. To distinguish the
-different point sets used in training, let \(\{(\mathbf{r}_i^{(f)},t_i^{(f)})\}_{i=1}^{N_f}\) denote the
-interior collocation points used to enforce the PDE, \(\{(\mathbf{r}_i^{(d)},t_i^{(d)},T_i^{\mathrm{data}})\}_{i=1}^{N_d}\)
-the observed data points, \(\{(\mathbf{r}_i^{(b)},t_i^{(b)},T_i^{\mathrm{BC}})\}_{i=1}^{N_b}\) the boundary-condition
-samples, and \(\{\mathbf{r}_i^{(0)}\}_{i=1}^{N_0}\) the spatial points at the initial time \(t=0\), with
-prescribed initial temperature \(T^{\mathrm{init}}(\mathbf{r})\). The component losses are then
+The overall training objective is a weighted sum of loss terms. Let
+$\{(\mathbf{r}_i^{(f)},t_i^{(f)})\}_{i=1}^{N_f}$ denote interior collocation points used to
+enforce the PDE, $\{(\mathbf{r}_i^{(d)},t_i^{(d)},T_i^{\mathrm{data}})\}_{i=1}^{N_d}$ the
+observed data points, $\{(\mathbf{r}_i^{(b)},t_i^{(b)},T_i^{\mathrm{BC}})\}_{i=1}^{N_b}$ the
+boundary-condition samples, and $\{\mathbf{r}_i^{(0)}\}_{i=1}^{N_0}$ spatial points at the
+initial time $t=0$ with prescribed initial temperature $T^{\mathrm{init}}(\mathbf{r})$. The
+component losses are
 \begin{equation}
 \mathcal{L}_{\mathrm{PDE}}
 =
@@ -218,9 +223,9 @@ prescribed initial temperature \(T^{\mathrm{init}}(\mathbf{r})\). The component 
 \mathcal{L}_{\mathrm{IC}}
 =
 \frac{1}{N_0}\sum_{i=1}^{N_0}
-\left|T_\theta(\mathbf{r}_i^{(0)},0)-T^{\mathrm{init}}(\mathbf{r}_i^{(0)})\right|^2.
+\left|T_\theta(\mathbf{r}_i^{(0)},0)-T^{\mathrm{init}}(\mathbf{r}_i^{(0)})\right|^2,
 \end{equation}
-The total loss is
+combined into the total loss
 \begin{equation}
 \mathcal{L}
 =
@@ -232,34 +237,39 @@ The total loss is
 +
 \lambda_{\mathrm{IC}}\mathcal{L}_{\mathrm{IC}}.
 \end{equation}
-Here \(N_f\), \(N_d\), \(N_b\), and \(N_0\) are the numbers of PDE, data, boundary, and initial
-samples, respectively. The quantities \(T_i^{\mathrm{data}}\) and \(T_i^{\mathrm{BC}}\) are the prescribed
-temperature values at the data and boundary sample points, while \(T^{\mathrm{init}}(\mathbf{r}_i^{(0)})\)
-is the prescribed initial temperature at spatial point \(\mathbf{r}_i^{(0)}\). The coefficients
-\(\lambda_{\mathrm{data}}\), \(\lambda_{\mathrm{PDE}}\), \(\lambda_{\mathrm{BC}}\), and \(\lambda_{\mathrm{IC}}\) are scalar
-weighting hyperparameters that determine the relative contribution of each loss term during training.
+Here $N_f$, $N_d$, $N_b$, and $N_0$ are the sample counts for each constraint set, and
+$T_i^{\mathrm{data}}$, $T_i^{\mathrm{BC}}$, $T^{\mathrm{init}}$ are the prescribed temperature
+values at the corresponding sample points. The scalar coefficients $\lambda_{\mathrm{data}}$,
+$\lambda_{\mathrm{PDE}}$, $\lambda_{\mathrm{BC}}$, and $\lambda_{\mathrm{IC}}$ are weighting
+hyperparameters that balance the relative contribution of each term during training.
 
-Minimising \(\mathcal{L}\) means differentiating this scalar objective with respect to the trainable
-parameters \(\theta = \{W^{[1]}, b^{[1]}, \dots, W^{[N]}, b^{[N]}\}\) and updating the weights and biases
-iteratively (for instance by gradient descent). The intermediate quantities \(z^{[\ell]}\) and
-\(a^{[\ell]}\) arise during each forward pass and are not directly updated; instead, changes in
-\(W^{[\ell]}\) and \(b^{[\ell]}\) produce new forward-pass values and thus a new temperature prediction
-\(T_\theta(\mathbf{r},t)\).
+The total loss $\mathcal{L}$ is a scalar function of $\theta$; the partial derivatives of
+$T_\theta$ entering $\mathcal{R}_\theta$ are obtained by automatic differentiation through
+the network. Training then computes the gradients
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial W^{[\ell]}},
+\qquad
+\frac{\partial \mathcal{L}}{\partial b^{[\ell]}}
+\end{equation}
+and updates the weights and biases, for example by gradient descent:
+\begin{equation}
+W^{[\ell]} \leftarrow W^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial W^{[\ell]}},
+\qquad
+b^{[\ell]} \leftarrow b^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial b^{[\ell]}}.
+\end{equation}
+The intermediate quantities $z^{[\ell]}$ and $a^{[\ell]}$ are not updated directly; changing
+$W^{[\ell]}$ and $b^{[\ell]}$ changes the next forward pass and therefore $T_\theta(\mathbf{r},t)$,
+which is how the physics constraints shape the learned solution.
 
-In training, the network takes \((\mathbf{r},t)\) as input and outputs \(T_\theta(\mathbf{r},t)\).
-Automatic differentiation provides the required spatial and temporal derivatives in
-\(\mathcal{R}_\theta\), and the parameters \(\theta\) are updated to minimise \(\mathcal{L}\), yielding a
-temperature field that balances data fidelity with physical consistency.
-
-Once a thermally consistent approximation \(T_\theta(\mathbf{r},t)\) has been obtained, it can be
+Once a thermally consistent approximation $T_\theta(\mathbf{r},t)$ has been obtained, it is
 coupled to the optical model through the thermo-optic relation
 \begin{equation}
 n_\theta(\mathbf{r},t)
 =
 n_0+\frac{dn}{dT}\bigl(T_\theta(\mathbf{r},t)-T_0\bigr),
 \end{equation}
-which gives a corresponding refractive-index field. This in turn induces a time-dependent optical
-phase perturbation,
+which gives a corresponding refractive-index field. This induces a time-dependent optical phase
+perturbation,
 \begin{equation}
 \Delta \phi_\theta(x,y,t)
 =
@@ -269,174 +279,66 @@ and therefore modifies the effective optical response of the material. In the pr
 PINN is thus used as a physics-constrained surrogate model for the thermal dynamics that drive
 slow drift in the optical system.
 
-The main appeal of this approach is that it incorporates known thermal physics directly into the
-learning process. As a result, the model does not rely solely on large labelled datasets, and its
-predictions are encouraged to remain consistent with the governing equations of the system. This
-makes PINNs a natural candidate for modelling thermally driven changes in an optical medium whose
-internal state is only partially observed through optical measurements.
+The main appeal of this approach is that it incorporates known thermal physics directly into
+the learning process, reducing reliance on large labelled datasets and yielding predictions
+that remain consistent with the governing equations even when the internal state of the medium
+is only partially observed through optical measurements.
 
-\newpage
+\subsection{Reinforcement Learning}
 
-\subsection{How would one solve the 1D heat equation with a PINN?}
+Reinforcement learning (RL) is used here as the feedback-control layer that updates the SLM
+phase pattern in response to measured output intensity. The environment is the optical system
+with its thermally drifting medium; at each time step $t$ the agent observes $s_t$ derived from
+$I(x,y)$ (optionally augmented by the thermal model), applies an action $a_t$ corresponding to a
+phase pattern $\phi(x,y)$ or its update, and receives a reward such as
+\begin{equation}
+r_t = I(x_0, y_0, t),
+\end{equation}
+the intensity at a designated target location. The learned policy $\pi(a_t\mid s_t)$ therefore
+encodes a phase-update strategy that maintains target intensity in the presence of thermal drift.
 
-To make the PINN methodology concrete, consider the one-dimensional heat equation
-\[
-\frac{\partial T}{\partial t} = \alpha \frac{\partial^2 T}{\partial x^2} + q(x,t),
-\]
-defined on a spatial domain $x \in [0,L]$ and for $t > 0$, where $\alpha > 0$ is the thermal
-diffusivity and $q(x,t)$ is a prescribed heat source. The problem is closed by an initial condition
-\[
-T(x,0) = f(x)
-\]
-and Dirichlet boundary conditions
-\[
-T(0,t) = g_0(t), \qquad T(L,t) = g_L(t).
-\]
-The goal is to find a function $T(x,t)$ satisfying all three of these requirements simultaneously.
-
-\subsubsection*{The neural network as a function approximator}
-
-A PINN replaces the unknown solution $T(x,t)$ with the output of a feedforward neural network
-$T_\theta(x,t)$. The network takes a single space-time point as its two-dimensional input and
-produces a scalar temperature prediction:
-\[
-a^{[0]} = \begin{bmatrix} x \\ t \end{bmatrix}, \qquad a^{[N]} = T_\theta(x,t).
-\]
-The forward pass through the network proceeds layer by layer. For $\ell = 1, \dots, N$, a
-pre-activation vector is formed by a linear transformation of the previous layer's output,
-\[
-z^{[\ell]} = W^{[\ell]}\, a^{[\ell-1]} + b^{[\ell]},
-\]
-and a nonlinear activation function $\sigma$ is then applied elementwise to produce the next
-layer's output,
-\[
-a^{[\ell]} = \sigma\!\left(z^{[\ell]}\right), \qquad \ell = 1, \dots, N-1.
-\]
-Here $W^{[\ell]}$ is the weight matrix for layer $\ell$, $b^{[\ell]}$ is the corresponding bias
-vector, $z^{[\ell]}$ is the pre-activation at layer $\ell$, and $a^{[\ell]}$ is its post-activation
-output. The final layer $a^{[N]}$ is a single scalar and is interpreted directly as the predicted
-temperature $T_\theta(x,t)$; no activation function is applied at the output.
-
-\subsubsection*{Encoding the physics via automatic differentiation}
-
-The network itself knows nothing about the heat equation. Physics enters through the loss
-function. Because $T_\theta(x,t)$ is a differentiable composition of smooth functions, its
-partial derivatives with respect to the inputs can be computed exactly by automatic
-differentiation:
-\[
-T_t = \frac{\partial T_\theta}{\partial t}, \qquad
-T_{xx} = \frac{\partial^2 T_\theta}{\partial x^2}.
-\]
-Substituting the network output into the heat equation yields the PDE residual
-\[
-R_\theta(x,t) = \frac{\partial T_\theta}{\partial t}
-- \alpha\frac{\partial^2 T_\theta}{\partial x^2} - q(x,t).
-\]
-If $T_\theta$ were the true solution, this residual would vanish everywhere in the domain.
-Training is designed to make it as small as possible.
-
-\subsubsection*{The loss function}
-
-The training objective is a weighted sum of three mean-squared loss terms, one for each
-requirement imposed on the solution.
-
-The \emph{PDE residual loss} penalises violations of the heat equation at a set of
-$N_f$ interior collocation points $\{(x_i^{(f)}, t_i^{(f)})\}$:
-\[
-\mathcal{L}_{\mathrm{PDE}}
-= \frac{1}{N_f}\sum_{i=1}^{N_f}
-\bigl|R_\theta(x_i^{(f)}, t_i^{(f)})\bigr|^2.
-\]
-The \emph{initial-condition loss} enforces the prescribed initial temperature profile
-$f(x)$ at $N_0$ spatial points sampled at $t = 0$:
-\[
-\mathcal{L}_{\mathrm{IC}}
-= \frac{1}{N_0}\sum_{i=1}^{N_0}
-\bigl|T_\theta(x_i^{(0)}, 0) - f(x_i^{(0)})\bigr|^2.
-\]
-The \emph{boundary-condition loss} enforces the prescribed boundary temperatures $g_0$ and
-$g_L$ at both ends of the domain, sampled at $N_b$ time points:
-\[
-\mathcal{L}_{\mathrm{BC}}
-= \frac{1}{N_b}\sum_{i=1}^{N_b}
-\bigl|T_\theta(0, t_i^{(b)}) - g_0(t_i^{(b)})\bigr|^2
-+ \frac{1}{N_b}\sum_{i=1}^{N_b}
-\bigl|T_\theta(L, t_i^{(b)}) - g_L(t_i^{(b)})\bigr|^2.
-\]
-These three terms are combined into the total loss
-\[
-\mathcal{L}
-= \lambda_{\mathrm{PDE}}\,\mathcal{L}_{\mathrm{PDE}}
-+ \lambda_{\mathrm{IC}}\,\mathcal{L}_{\mathrm{IC}}
-+ \lambda_{\mathrm{BC}}\,\mathcal{L}_{\mathrm{BC}}.
-\]
-
-The integers $N_f$, $N_0$, and $N_b$ control how densely each constraint is sampled: $N_f$
-collocation points are drawn from the interior of the space-time domain to enforce the
-differential equation, $N_0$ points along the initial-time slice enforce the initial condition,
-and $N_b$ points along each boundary enforce the boundary conditions. The scalar coefficients
-$\lambda_{\mathrm{PDE}}$, $\lambda_{\mathrm{IC}}$, and $\lambda_{\mathrm{BC}}$ are user-chosen hyperparameters that
-balance the relative importance of the three constraints. Increasing a particular $\lambda$
-directs the optimiser to prioritise satisfying that constraint more strongly.
-
-At this point the total loss is a scalar function of all weights and biases,
-\[
-\theta = \{W^{[1]}, b^{[1]}, \dots, W^{[N]}, b^{[N]}\},
-\]
-so training computes the gradients
-\[
-\frac{\partial \mathcal{L}}{\partial W^{[\ell]}}, \qquad
-\frac{\partial \mathcal{L}}{\partial b^{[\ell]}}
-\]
-for every layer and updates the parameters, for example by gradient descent,
-\[
-W^{[\ell]} \leftarrow W^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial W^{[\ell]}},
-\qquad
-b^{[\ell]} \leftarrow b^{[\ell]} - \eta \frac{\partial \mathcal{L}}{\partial b^{[\ell]}}.
-\]
-The intermediate values $z^{[\ell]}$ and $a^{[\ell]}$ are produced during each forward pass and are
-not directly updated by the loss; instead, changing $W^{[\ell]}$ and $b^{[\ell]}$ yields a new forward
-pass and therefore a new prediction $T_\theta(x,t)$. This is the mechanism by which the PDE,
-initial, and boundary constraints influence the learned solution.
-
-\subsubsection*{Summary of the workflow}
-
-In brief, solving the 1D heat equation with a PINN proceeds as follows:
-\begin{enumerate}[label=(\roman*)]
-    \item Choose a space-time point $(x, t)$ in the domain.
-    \item Set the input activation
-        \[
-        a^{[0]} = \begin{bmatrix}x \\ t\end{bmatrix}.
-        \]
-    \item Propagate forward using
-        \[
-        z^{[\ell]} = W^{[\ell]} a^{[\ell-1]} + b^{[\ell]}, \qquad
-        a^{[\ell]} = \sigma\!\left(z^{[\ell]}\right),
-        \]
-        and obtain $a^{[N]} = T_\theta(x,t)$.
-    \item Compute the partial derivatives $\partial T_\theta / \partial t$ and
-        $\partial^2 T_\theta / \partial x^2$ via automatic differentiation.
-    \item Form the PDE residual $R_\theta(x,t)$ by substituting these derivatives into
-        the heat equation.
-    \item Repeat steps (i)--(v) over many sampled points and evaluate the total loss
-        $\mathcal{L}$ over all collocation, initial, and boundary sets.
-    \item Update $W^{[\ell]}$ and $b^{[\ell]}$ using gradients of $\mathcal{L}$, and iterate
-        until convergence.
-\end{enumerate}
-At the end of training, $T_\theta(x,t)$ is a continuous, differentiable approximation of
-the solution that satisfies the heat equation, initial condition, and boundary conditions
-simultaneously, without an explicit mesh-based spatial discretisation or conventional time-marching scheme.
-
-
-\newpage
+The RL controller is distinct from the thermal model. The PINN or numerical solver predicts the
+evolving temperature field and thus the drift in $T_{\mathrm{opt}}(t)$; that information may be
+used to shape $s_t$ or to build a training simulator, but the control loop itself is driven by
+optical measurements. This separation clarifies how modelling and control couple in the overall
+task: the thermal model tracks drift, while RL compensates it via SLM phase updates.
 
 \section{Experimental Setup}
+
+This project implements a closed-loop optical system in which the SLM phase is adjusted to
+counteract slow, thermally induced drift in a thermo-optical medium. The system-level flow is
+defined by an input field at the SLM plane, a controllable phase pattern $\phi(x,y)$ applied by
+the SLM, propagation through a drifting optical operator $T_{\mathrm{opt}}(t)$, and a measured
+output intensity distribution $I(x,y)$ at the detector. The control objective is to maintain or
+recover a desired output response, typically high intensity at a specified target location.
+
+The thermal dynamics are modelled separately from the control law. A thermal model, implemented
+either as a PINN-based surrogate or a classical numerical solver, predicts the evolving temperature
+field and therefore the time-varying perturbation of the medium's optical response. The optical
+forward model then maps the SLM-modulated field through this drifting operator to produce the
+observable intensity distribution. This modelling component characterises how drift arises but does
+not decide how the SLM should be updated.
+
+The controller closes the loop by acting on the measured output. It selects the next phase pattern
+based on the observed $I(x,y)$ (and, if desired, model-informed state features), with the aim of
+maintaining target performance despite drift. The controller may be reinforcement-learning-based,
+but it remains conceptually distinct from the thermal model: the thermal model describes the
+drifting medium, while the controller chooses the next $\phi(x,y)$ from optical feedback. In compact
+form, the operational chain is
+\begin{equation}
+E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)},
+\quad
+E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}},
+\quad
+I(x,y)=\left|E_{\mathrm{out}}(x,y)\right|^2,
+\end{equation}
+with $I(x,y)$ feeding the controller to generate the next $\phi(x,y)$.
 
 A setup of our system is shown below in Figure~\ref{fig:setup}.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=0.7\textwidth]{figures/setup.png}
+    \includegraphics[width=0.6\textwidth]{figures/setup.png}
     \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
     \label{fig:setup}
 \end{figure}
