@@ -342,8 +342,7 @@ A setup of our system is shown below in Figure~\ref{fig:setup}.
     \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
     \label{fig:setup}
 \end{figure}
-The optical process is summarized as follows:
-
+The optical process is summarized as follows \cite{\cite{raissiPhysicsinformedNeuralNetworks2019}}:
 
 \begin{enumerate}[label=\textcolor{blue}{(\Roman*)}]
     \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
@@ -352,5 +351,8 @@ The optical process is summarized as follows:
     \item Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
     \item Define the reinforcement-learning reward as the intensity at a selected target output location.
 \end{enumerate}
+
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}
