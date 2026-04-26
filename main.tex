@@ -52,6 +52,57 @@ dynamics of the medium and feedback control of the SLM phase pattern.
 
 \newpage
 
+\section{Experimental Setup}
+
+This project implements a closed-loop optical system in which the SLM phase is adjusted to
+counteract slow, thermally induced drift in a thermo-optical medium. The system-level flow is
+defined by an input field at the SLM plane, a controllable phase pattern $\phi(x,y)$ applied by
+the SLM, propagation through a drifting optical operator $T_{\mathrm{opt}}(t)$, and a measured
+output intensity distribution $I(x,y)$ at the detector. The control objective is to maintain or
+recover a desired output response, typically high intensity at a specified target location.
+
+The thermal dynamics are modelled separately from the control law. A thermal model, implemented
+either as a PINN-based surrogate or a classical numerical solver, predicts the evolving temperature
+field and therefore the time-varying perturbation of the medium's optical response. The optical
+forward model then maps the SLM-modulated field through this drifting operator to produce the
+observable intensity distribution. This modelling component characterises how drift arises but does
+not decide how the SLM should be updated.
+
+The controller closes the loop by acting on the measured output. It selects the next phase pattern
+based on the observed $I(x,y)$ (and, if desired, model-informed state features), with the aim of
+maintaining target performance despite drift. The controller may be reinforcement-learning-based,
+but it remains conceptually distinct from the thermal model: the thermal model describes the
+drifting medium, while the controller chooses the next $\phi(x,y)$ from optical feedback. In compact
+form, the operational chain is
+\begin{equation}
+E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)},
+\quad
+E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}},
+\quad
+I(x,y)=\left|E_{\mathrm{out}}(x,y)\right|^2,
+\end{equation}
+with $I(x,y)$ feeding the controller to generate the next $\phi(x,y)$.
+
+A setup of our system is shown below in Figure~\ref{fig:setup}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figures/setup.png}
+    \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
+    \label{fig:setup}
+\end{figure}
+The optical process is summarized as follows:
+
+\begin{enumerate}[label=\textcolor{blue}{(\Roman*)}]
+    \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
+    \item Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
+    \item Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
+    \item Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
+    \item Define the reinforcement-learning reward as the intensity at a selected target output location.
+\end{enumerate}
+
+\newpage
+
 \section{Background Information}
 
 \subsection{Optical Physics}
@@ -303,54 +354,6 @@ used to shape $s_t$ or to build a training simulator, but the control loop itsel
 optical measurements. This separation clarifies how modelling and control couple in the overall
 task: the thermal model tracks drift, while RL compensates it via SLM phase updates.
 
-\section{Experimental Setup}
-
-This project implements a closed-loop optical system in which the SLM phase is adjusted to
-counteract slow, thermally induced drift in a thermo-optical medium. The system-level flow is
-defined by an input field at the SLM plane, a controllable phase pattern $\phi(x,y)$ applied by
-the SLM, propagation through a drifting optical operator $T_{\mathrm{opt}}(t)$, and a measured
-output intensity distribution $I(x,y)$ at the detector. The control objective is to maintain or
-recover a desired output response, typically high intensity at a specified target location.
-
-The thermal dynamics are modelled separately from the control law. A thermal model, implemented
-either as a PINN-based surrogate or a classical numerical solver, predicts the evolving temperature
-field and therefore the time-varying perturbation of the medium's optical response. The optical
-forward model then maps the SLM-modulated field through this drifting operator to produce the
-observable intensity distribution. This modelling component characterises how drift arises but does
-not decide how the SLM should be updated.
-
-The controller closes the loop by acting on the measured output. It selects the next phase pattern
-based on the observed $I(x,y)$ (and, if desired, model-informed state features), with the aim of
-maintaining target performance despite drift. The controller may be reinforcement-learning-based,
-but it remains conceptually distinct from the thermal model: the thermal model describes the
-drifting medium, while the controller chooses the next $\phi(x,y)$ from optical feedback. In compact
-form, the operational chain is
-\begin{equation}
-E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)},
-\quad
-E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}},
-\quad
-I(x,y)=\left|E_{\mathrm{out}}(x,y)\right|^2,
-\end{equation}
-with $I(x,y)$ feeding the controller to generate the next $\phi(x,y)$.
-
-A setup of our system is shown below in Figure~\ref{fig:setup}.
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.6\textwidth]{figures/setup.png}
-    \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
-    \label{fig:setup}
-\end{figure}
-The optical process is summarized as follows \cite{\cite{raissiPhysicsinformedNeuralNetworks2019}}:
-
-\begin{enumerate}[label=\textcolor{blue}{(\Roman*)}]
-    \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
-    \item Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
-    \item Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
-    \item Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
-    \item Define the reinforcement-learning reward as the intensity at a selected target output location.
-\end{enumerate}
 
 \bibliographystyle{plain}
 \bibliography{references}
