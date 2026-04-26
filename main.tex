@@ -21,29 +21,25 @@
 \maketitle
 
 \begin{abstract}
-This project develops a simulation framework for modelling and compensating thermally induced
-drift in a thermo-optical medium. The optical system consists of a Gaussian input field evaluated
-at the spatial light modulator (SLM) plane, where a phase-only modulation pattern is applied. The
-modulated field then propagates through the medium, described by a time-varying complex optical
-operator, and the resulting intensity distribution is recorded at a downstream detector.
+This project studies how to keep an optical system working properly when a thermo-optical
+medium slowly drifts over time. A Gaussian beam is first phase-shaped by a spatial light
+modulator (SLM), then passes through a medium whose optical response changes as its
+temperature evolves, and is finally measured by a detector through its output intensity
+distribution. The central goal is to maintain a desired output intensity pattern at the output
+plane even as thermal drift changes the refractive index of the medium, alters the optical phase
+accumulated by the beam, and reshapes the interference pattern seen at the detector.
 
-The thermal dynamics of the medium are governed by the heat equation, with temperature-dependent
-refractive-index changes introduced through the thermo-optic effect. These variations produce a
-spatially and temporally varying phase perturbation, which causes slow drift in the effective
-optical response of the system. The evolving thermal state may be captured either by a
-physics-informed neural network (PINN), which encodes the governing equation directly into its
-training objective, or by a classical numerical solver; in either case the result is a temperature
-field consistent with the governing physics and any available boundary, initial, and observational
-constraints.
+The project is organized around two connected tasks. The first is to model the evolving thermal
+state of the medium and its effect on the optical response, using either a physics-informed
+neural network (PINN) or a classical numerical solution of the heat equation. The second is to
+use feedback from the measured output intensity to update the SLM phase pattern so that the
+desired output intensity pattern can be maintained or recovered over time. This feedback loop
+may be implemented using reinforcement learning, with the reward based on how well the measured
+output matches the desired response.
 
-Separately from this modelling component, a feedback control loop is used to update the SLM phase
-pattern based on the measured output intensity distribution. This control loop may be implemented
-using reinforcement learning, with the reward defined by the intensity at a designated target output
-location. In this formulation, the thermal model - whether PINN-based or numerically
-solved - tracks the evolving state of the medium, while the RL controller acts on optical
-measurements to compensate drift and recover the desired output response. The project is therefore
-structured around two coupled but conceptually distinct tasks: modelling the thermally driven
-dynamics of the medium and feedback control of the SLM phase pattern.
+In this way, the project separates the problem into modelling and control: the thermal model
+describes how and why the system drifts, while the controller decides how the wavefront should
+be adjusted to compensate for that drift and preserve the target intensity distribution.
 \end{abstract}
 
 \newpage 
@@ -54,36 +50,60 @@ dynamics of the medium and feedback control of the SLM phase pattern.
 
 \section{Experimental Setup}
 
-This project implements a closed-loop optical system in which the SLM phase is adjusted to
-counteract slow, thermally induced drift in a thermo-optical medium. The system-level flow is
-defined by an input field at the SLM plane, a controllable phase pattern $\phi(x,y)$ applied by
-the SLM, propagation through a drifting optical operator $T_{\mathrm{opt}}(t)$, and a measured
-output intensity distribution $I(x,y)$ at the detector. The control objective is to maintain or
-recover a desired output response, typically high intensity at a specified target location.
+\section{Experimental Setup}
 
-The thermal dynamics are modelled separately from the control law. A thermal model, implemented
-either as a PINN-based surrogate or a classical numerical solver, predicts the evolving temperature
-field and therefore the time-varying perturbation of the medium's optical response. The optical
-forward model then maps the SLM-modulated field through this drifting operator to produce the
-observable intensity distribution. This modelling component characterises how drift arises but does
-not decide how the SLM should be updated.
+This project studies a closed-loop optical system whose output degrades because the medium through
+which the beam propagates is thermally drifting. A Gaussian beam is first phase-shaped by a spatial
+light modulator (SLM), then sent through a thermo-optical material, and finally measured at a
+detector. The main objective is to maintain a desired output intensity pattern at the output plane,
+even though the optical response of the medium changes over time.
 
-The controller closes the loop by acting on the measured output. It selects the next phase pattern
-based on the observed $I(x,y)$ (and, if desired, model-informed state features), with the aim of
-maintaining target performance despite drift. The controller may be reinforcement-learning-based,
-but it remains conceptually distinct from the thermal model: the thermal model describes the
-drifting medium, while the controller chooses the next $\phi(x,y)$ from optical feedback. In compact
-form, the operational chain is
+The physical mechanism behind this drift is as follows. As the temperature field inside the medium
+evolves, the refractive index changes through the thermo-optic effect. These refractive-index
+changes alter the optical path length and therefore the phase accumulated by the beam during
+propagation. Because the measured output is formed by interference of many field contributions,
+phase drift in the medium leads directly to drift in the output intensity distribution. In compact
+form,
+\[
+\text{thermal drift}
+\;\longrightarrow\; \Delta n(\mathbf{r},t)
+\;\longrightarrow\; \Delta \phi(x,y,t)
+\;\longrightarrow\; \text{interference change}
+\;\longrightarrow\; I(x,y)\text{ drift.}
+\]
+An SLM phase pattern that produces the desired output at one moment will therefore generally stop
+doing so as the medium continues to evolve.
+
+The project is organized around four coupled components. First, a thermal model describes the
+evolving temperature field and therefore the time-varying perturbation of the medium’s optical
+response. Second, an optical forward model maps the SLM-modulated input field through this drifting
+medium. Third, a detector records the resulting output intensity distribution. Fourth, a feedback
+controller updates the SLM phase pattern in response to the measured output so that the desired
+intensity pattern can be maintained or recovered.
+
+At the systems level, the operational chain is
 \begin{equation}
 E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)},
-\quad
+\qquad
 E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}},
-\quad
+\qquad
 I(x,y)=\left|E_{\mathrm{out}}(x,y)\right|^2,
 \end{equation}
-with $I(x,y)$ feeding the controller to generate the next $\phi(x,y)$.
+with \(I(x,y)\) feeding the controller to generate the next \(\phi(x,y)\). Here
+\(E_{\mathrm{in}}(x,y)\) is the incident field at the SLM plane, \(\phi(x,y)\) is the applied SLM
+phase pattern, \(T_{\mathrm{opt}}(t)\) is the time-varying optical operator of the thermo-optical
+medium, and \(I(x,y)\) is the measured output intensity distribution.
 
-A setup of our system is shown below in Figure~\ref{fig:setup}.
+The thermal model and the controller are conceptually distinct. The thermal model---implemented as
+either a PINN-based surrogate or a classical numerical solver---predicts the evolving temperature
+field and, through the thermo-optic relation, the drift in \(T_{\mathrm{opt}}(t)\). Its role is to
+describe how the medium changes in time, not to choose the SLM phase pattern. The controller closes
+the loop by acting on measured optical output, optionally augmented by model-based state estimates,
+to select the next \(\phi(x,y)\). This controller may be reinforcement-learning-based, but it
+remains separate from the thermal model: the model explains the drift, while the controller
+compensates for it.
+
+A schematic of the system is shown in Figure~\ref{fig:setup}.
 
 \begin{figure}[ht]
     \centering
@@ -91,14 +111,26 @@ A setup of our system is shown below in Figure~\ref{fig:setup}.
     \caption{Schematic of the experimental setup. The laser beam is modulated by the SLM, passes through the thermo-optical material, and is detected by the camera.}
     \label{fig:setup}
 \end{figure}
+
 The optical process is summarized as follows:
 
 \begin{enumerate}[label=\textcolor{blue}{(\Roman*)}]
-    \item Define the incident field $E_{\mathrm{in}}(x,y)$ at the SLM plane.
-    \item Apply SLM phase modulation to obtain $E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}$.
-    \item Propagate through the thermo-optical material using the transmission matrix $T_{\mathrm{opt}}(t)$ to give $E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}$.
-    \item Compute the output intensity $I(x,y)=|E_{\mathrm{out}}(x,y)|^2$.
-    \item Define the reinforcement-learning reward as the intensity at a selected target output location.
+    \item Define the incident field \(E_{\mathrm{in}}(x,y)\) at the SLM plane.
+    \item Apply SLM phase modulation to obtain
+    \[
+    E_{\mathrm{SLM}}(x,y)=E_{\mathrm{in}}(x,y)e^{i\phi(x,y)}.
+    \]
+    \item Propagate through the thermo-optical material using the time-varying optical operator
+    \(T_{\mathrm{opt}}(t)\) to obtain
+    \[
+    E_{\mathrm{out}}=T_{\mathrm{opt}}(t)E_{\mathrm{SLM}}.
+    \]
+    \item Compute the output intensity
+    \[
+    I(x,y)=|E_{\mathrm{out}}(x,y)|^2.
+    \]
+    \item Use the measured output intensity to define the control objective, for example through a
+    reward based on how well the observed output matches the desired target intensity pattern.
 \end{enumerate}
 
 \newpage
