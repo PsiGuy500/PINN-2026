@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2026.1.29)  25 APR 2026 17:49
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2026.1.29)  25 APR 2026 22:31
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -344,7 +344,7 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 
 {C:/Users/cyrus/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ec.enc}] (main.toc
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 4.
+(Font)              <10.95> on input line 3.
 )
 \tf@toc=\write3
 \openout3 = `main.toc'.
@@ -352,7 +352,7 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 
 
 [2]
-Overfull \hbox (1.01451pt too wide) in paragraph at lines 97--105
+Overfull \hbox (1.01451pt too wide) in paragraph at lines 95--103
 []\T1/lmr/m/n/10.95 (-20) The ther-mal model and the con-troller are con-cep-tu-ally dis-tinct. The ther-mal model---implemented
  []
 
@@ -362,7 +362,7 @@ Overfull \hbox (1.01451pt too wide) in paragraph at lines 97--105
 <figures/setup.png, id=22, 337.26pt x 188.50426pt>
 File: figures/setup.png Graphic file (type png)
 <use figures/setup.png>
-Package pdftex.def Info: figures/setup.png  used on input line 112.
+Package pdftex.def Info: figures/setup.png  used on input line 110.
 (pdftex.def)             Requested size: 281.85587pt x 157.53998pt.
 
 
@@ -393,7 +393,7 @@ Here is how much of TeX's memory you used:
  1141 hyphenation exceptions out of 8191
  57i,10n,65p,1042b,243s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx12.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmex10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi6.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmmi8.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr12.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr17.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr6.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr8.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmri10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmsy10.pfb><C:/Users/cyrus/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmsy8.pfb>
-Output written on main.pdf (9 pages, 329265 bytes).
+Output written on main.pdf (9 pages, 329241 bytes).
 PDF statistics:
  116 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
